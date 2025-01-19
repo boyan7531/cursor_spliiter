@@ -66,9 +66,10 @@ class VideoProcessor:
                                 font='Arial',
                                 fontsize=40,
                                 color='white',
-                                size=(self.target_width * 1.2, None),
-                                method='caption'
-                    
+                                size=(self.target_width * 0.9, None),
+                                method='caption',
+                                stroke_color='black',
+                                stroke_width=2
                             ).set_duration(segment_end - segment_start)
                             
                             # Adjust timing relative to video start
