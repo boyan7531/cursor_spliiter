@@ -1,4 +1,4 @@
-from moviepy.editor import VideoFileClip, CompositeVideoClip, clips_array, ColorClip
+from moviepy.editor import VideoFileClip, CompositeVideoClip, clips_array, ColorClip, concatenate_videoclips
 import numpy as np
 
 class VideoProcessor:
@@ -11,25 +11,42 @@ class VideoProcessor:
         self.target_width = 1080
         self.target_height = 1920
         
-        # Scale factors (1.2 for gameplay, 1.4 for attention video)
+        # Scale factors (1.2 for gameplay, 1.8 for attention video)
         self.gameplay_scale = 1.2
-        self.attention_scale = 1.4
+        self.attention_scale = 1.8
         
     def process_videos(self, start_time=0, end_time=None):
         if end_time is None:
             end_time = self.gameplay.duration
 
-        # Get subclips for the specified time range
+        # Get gameplay subclip
         gameplay_clip = self.gameplay.subclip(start_time, end_time)
         
-        # Create a new attention clip that matches the gameplay duration
-        attention_duration = end_time - start_time
-        attention_clip = self.attention.subclip(0, attention_duration)
+        # Calculate how many times we need to loop the attention video
+        clip_duration = end_time - start_time
+        attention_full_duration = self.attention.duration
+        loops_needed = int(np.ceil(clip_duration / attention_full_duration))
+        
+        # Create a list to store the attention video segments
+        attention_segments = []
+        remaining_duration = clip_duration
+        current_time = 0
+        
+        # Create the looped attention video
+        while remaining_duration > 0:
+            segment_duration = min(remaining_duration, attention_full_duration)
+            segment = self.attention.subclip(0, segment_duration)
+            attention_segments.append(segment)
+            remaining_duration -= segment_duration
+            current_time += segment_duration
+        
+        # Concatenate all attention segments
+        attention_clip = concatenate_videoclips(attention_segments)
             
-        # Resize gameplay video (scaled up and positioned slightly above center)
+        # Resize gameplay video (scaled up and positioned higher)
         gameplay_resized = gameplay_clip.resize(width=self.target_width * self.gameplay_scale)
         gameplay_height = gameplay_resized.h
-        gameplay_y = (self.target_height * 0.4) - (gameplay_height / 2)
+        gameplay_y = (self.target_height * 0.3) - (gameplay_height / 2)
         
         # Resize attention video (scaled up more and positioned below)
         attention_resized = attention_clip.resize(width=self.target_width * self.attention_scale)
@@ -60,7 +77,7 @@ class VideoProcessor:
     
     def split_by_duration(self, duration_per_part):
         """Split video into parts of specified duration"""
-        total_duration = min(self.gameplay.duration, self.attention.duration)
+        total_duration = self.gameplay.duration  # Use gameplay duration as the total
         parts = []
         
         current_time = 0
@@ -74,6 +91,6 @@ class VideoProcessor:
     
     def split_by_parts(self, num_parts):
         """Split video into specified number of parts"""
-        total_duration = min(self.gameplay.duration, self.attention.duration)
+        total_duration = self.gameplay.duration  # Use gameplay duration as the total
         duration_per_part = total_duration / num_parts
         return self.split_by_duration(duration_per_part) 
